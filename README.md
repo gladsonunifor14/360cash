@@ -162,10 +162,12 @@ Federal.
 ✅ A mensagem "Cadastro realizado" aparece e você consegue entrar com o código recebido por e-mail.
 
 **Passo 2 · Revise os textos jurídicos**
-Em **Contratos e LGPD**, leia os modelos de *Política de Privacidade*, *Termo de Confidencialidade*, *Termos de Uso*
-e o *Contrato de BPO Financeiro*. Eles são pontos de partida: ajuste com o seu jurídico e publique novas
-versões pela API (`POST /v1/terms` e `POST /v1/contract-templates`).
-✅ Os termos vigentes aparecem com a versão correta.
+Em **Termos e LGPD**, leia (**Ler texto**) a *Política de Privacidade*, o *Termo de Confidencialidade* e os *Termos
+de Uso*. Eles são pontos de partida: ajuste com o seu jurídico e use **Publicar nova versão**. O texto atual vem
+preenchido; edite, clique em **Revisar e publicar** e confirme. Versões publicadas não mudam mais, e todos os
+usuários passam a ter o aceite pendente (aparece um aviso no topo da tela até aceitarem). O modelo do *Contrato de
+BPO Financeiro* é publicado pela API (`POST /v1/contract-templates`).
+✅ Cada termo mostra a versão vigente, o hash do texto e quantos usuários já aceitaram.
 
 **Passo 3 · Cadastre o primeiro cliente**
 Em **Clientes**, digite o CNPJ e clique em **Buscar e cadastrar**. Escolha o regime tributário ou deixe o sistema
@@ -173,18 +175,21 @@ detectar.
 ✅ A empresa aparece na lista e no seletor **Empresa em atendimento** no topo da tela.
 
 **Passo 4 · Convide sua equipe e o cliente**
-Pela API (`POST /v1/users`) ou pelo Swagger, crie usuários **contador** para a equipe e **cliente** para quem vai
-operar do lado da empresa. Cada convidado recebe um e-mail para definir a própria senha.
-✅ O convidado consegue fazer login.
+Em **Usuários → Convidar usuário**, informe nome, e-mail e perfil: **Contador** para a equipe, ou **Cliente** (com
+a empresa) para quem vai operar do lado do cliente. Cada convidado recebe um e-mail para definir a própria senha.
+Na lista você acompanha a situação (*Ativo*, *Convite pendente*, *Inativo*), os termos pendentes e o último acesso.
+Use **Editar** para mudar o perfil ou a empresa, **Reenviar convite** se o link expirou e **Desativar** para
+bloquear o acesso: as sessões abertas são encerradas na hora e o histórico é preservado.
+✅ O convidado aparece como *Ativo* depois do primeiro login.
 
 **Passo 5 · Formalize o contrato**
-Em **Contratos e LGPD**, informe os honorários mensais e a data de início e clique em **Gerar contrato**. O cliente
+Em **Contratos e procurações**, informe os honorários mensais e a data de início e clique em **Gerar contrato**. O cliente
 aceita pelo próprio acesso.
 ✅ O status muda de *pendente* para *aceito*, com data, hora e IP.
 
 **Passo 6 · Registre procurações e documentos**
 Envie a procuração (e-CAC, bancos, SEFAZ) em **Documentos** e registre validade e finalidade em **Contratos e
-LGPD → Procurações**. A torre de controle avisa quando uma procuração estiver para vencer.
+procurações → Procurações**. A torre de controle avisa quando uma procuração estiver para vencer.
 ✅ A procuração aparece com o período de validade.
 
 **Passo 7 · Carregue os dados iniciais**
@@ -268,7 +273,7 @@ Reclassifique quando necessário: a escolha manual prevalece sobre a regra.
 ### Trilha 3 — Cliente do escritório
 
 1. **Primeiro acesso:** abra o e-mail de convite, defina a senha e faça login com o código enviado por e-mail.
-2. **Termos:** em **Contratos e LGPD**, leia e aceite os termos pendentes (privacidade, confidencialidade e uso).
+2. **Termos:** clique no aviso "Termos pendentes" (ou abra **Contratos e procurações**), leia e aceite os termos (privacidade, confidencialidade e uso).
 3. **Contrato:** clique em **Ver** para ler o contrato de BPO Financeiro e em **Aceitar**. O aceite tem validade
    jurídica e fica registrado com data, hora e IP.
 4. **Envie documentos:** em **Documentos** (contratos, comprovantes, procurações) e em **Notas fiscais** (XML).
@@ -578,7 +583,7 @@ O 360cash foi desenhado para a Lei nº 13.709/2018:
 |---|---|
 | Papéis | O escritório é **operador** dos dados pessoais dos documentos dos clientes e **controlador** dos dados dos usuários da plataforma |
 | Transparência | Política de privacidade com finalidades, bases legais (art. 7º), compartilhamentos e retenção |
-| Consentimento e aceite | Termos versionados; cada aceite guarda usuário, data/hora, IP, navegador e o hash SHA-256 do texto aceito; nova versão gera novo aceite pendente |
+| Consentimento e aceite | Termos versionados; cada aceite guarda usuário, data/hora, IP, navegador e o hash SHA-256 do texto aceito; nova versão gera novo aceite pendente; evidências consultáveis e exportáveis em CSV em **Termos e LGPD → Evidências de aceite** |
 | Confidencialidade | Termo de confidencialidade e sigilo profissional (NBC PG 01, LC 105/2001) |
 | Minimização | A IA externa recebe apenas o histórico normalizado do lançamento, o sinal e o plano de contas; nunca nome, CNPJ, valores ou conta |
 | Segurança (art. 46) | Controles descritos em [Segurança](#segurança) e trilha de auditoria imutável |
@@ -649,7 +654,8 @@ o sistema ainda não foi homologado em produção com clientes reais.
 | Torre de controle, busca global, DRE, Fluxo de Caixa, BI | ✅ Implementado |
 | Swagger, auditoria imutável, CI | ✅ Implementado |
 | Open Finance | 🟡 Interface pronta; depende de contrato com o agregador |
-| Telas de administração de usuários e termos | 🟡 Disponíveis via API/Swagger; telas no roadmap |
+| Telas de usuários (convite, perfis, desativação) e de termos (versões, publicação, evidências) | ✅ Implementado |
+| Tela de edição do modelo de contrato | 🟡 Disponível via API/Swagger |
 | Exportação PDF/XLSX nativa, CNAB, SEFAZ automática | ⏳ Roadmap |
 
 Próximas entregas: [docs/roadmap.md](docs/roadmap.md). Decisões de UX: [docs/ux.md](docs/ux.md).

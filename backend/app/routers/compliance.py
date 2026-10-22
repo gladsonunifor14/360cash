@@ -12,7 +12,16 @@ from app.core.database import get_db
 from app.core.deps import Principal, get_client_for, get_principal, require_admin, require_staff
 from app.core.ratelimit import client_ip
 from app.core.security import utcnow
-from app.models import Contract, ContractTemplate, Document, Office, PowerOfAttorney, Term, TermAcceptance
+from app.models import (
+    Contract,
+    ContractTemplate,
+    Document,
+    Office,
+    PowerOfAttorney,
+    Term,
+    TermAcceptance,
+    User,
+)
 from app.routers.common import read_limited
 from app.schemas import (
     ContractIn,
@@ -24,9 +33,11 @@ from app.schemas import (
     Message,
     PoaIn,
     PoaOut,
+    TermAcceptanceDetail,
     TermAcceptanceOut,
     TermIn,
     TermOut,
+    TermVersionOut,
 )
 from app.services import storage
 from app.services.cnpj import format_cnpj
@@ -76,13 +87,28 @@ def publish_term(body: TermIn, p: Principal = Depends(require_admin), db: Sessio
     return term
 
 
-@router.get("/terms/acceptances", response_model=list[TermAcceptanceOut], tags=["LGPD e Termos"],
-            summary="Evidências de aceite dos termos (escritório)")
+@router.get("/terms/acceptances", response_model=list[TermAcceptanceDetail], tags=["LGPD e Termos"],
+            summary="Evidências de aceite dos termos (quem, qual versão, quando, IP e hash)")
 def list_acceptances(p: Principal = Depends(require_staff), db: Session = Depends(get_db)):
-    return db.scalars(
-        select(TermAcceptance).join(Term, Term.id == TermAcceptance.term_id)
+    rows = db.execute(
+        select(TermAcceptance, Term, User).join(Term, Term.id == TermAcceptance.term_id)
+        .join(User, User.id == TermAcceptance.user_id)
         .where(Term.office_id == p.office_id).order_by(TermAcceptance.accepted_at.desc())
     ).all()
+    return [TermAcceptanceDetail(**TermAcceptanceOut.model_validate(a).model_dump(), user_name=u.name,
+                                 user_email=u.email, term_kind=t.kind, term_title=t.title, term_version=t.version,
+                                 user_agent=a.user_agent) for a, t, u in rows]
+
+
+@router.get("/terms/history", response_model=list[TermVersionOut], tags=["LGPD e Termos"],
+            summary="Todas as versões publicadas dos termos, com quantidade de aceites")
+def terms_history(p: Principal = Depends(require_staff), db: Session = Depends(get_db)):
+    current = {t.id for t in current_terms(db, p.office_id)}
+    counts = dict(db.execute(select(TermAcceptance.term_id, func.count()).group_by(TermAcceptance.term_id)).all())
+    terms = db.scalars(select(Term).where(Term.office_id == p.office_id)
+                       .order_by(Term.kind, Term.version.desc())).all()
+    return [TermVersionOut(**TermOut.model_validate(t).model_dump(), is_active=t.is_active,
+                           is_current=t.id in current, acceptances=counts.get(t.id, 0)) for t in terms]
 
 
 # --------------------------------------------------------------------------- contrato de adesão

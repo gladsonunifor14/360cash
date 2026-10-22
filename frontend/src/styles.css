@@ -201,3 +201,17 @@ tr.selected td { background: color-mix(in srgb, var(--primary) 9%, transparent);
   .grid2 { grid-template-columns: 1fr; }
 }
 @media print { .appbar, .batchbar { display: none !important; } }
+
+/* ------------------------------------------------------------ usuários e termos */
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; align-items: start; }
+.grid3 input, .grid3 select { width: 100%; }
+.span-all { grid-column: 1 / -1; }
+td.actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+button.danger { color: var(--danger); border-color: var(--danger); }
+summary { cursor: pointer; }
+details.card > summary { margin-bottom: .75rem; }
+.term-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+.mono { font-family: ui-monospace, monospace; font-size: .8rem; }
+textarea { width: 100%; font-family: ui-monospace, monospace; font-size: .85rem; line-height: 1.45; }
+.publish { border: 2px solid var(--primary); }
+.banner { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; padding: .6rem 2rem; background: var(--warning-bg); border-bottom: 1px solid var(--border); }

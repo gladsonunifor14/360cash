@@ -91,6 +91,14 @@ class UserOut(ORM):
     office_id: str
     client_id: str | None
     last_login_at: datetime | None
+    is_active: bool = True
+    created_at: datetime | None = None
+
+
+class UserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=3, max_length=200)
+    role: Literal["admin", "contador", "cliente"] | None = None
+    client_id: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -259,6 +267,28 @@ class TermAcceptanceOut(ORM):
     content_sha256: str
     accepted_at: datetime
     ip: str | None
+
+
+class TermAcceptanceDetail(TermAcceptanceOut):
+    user_name: str
+    user_email: str
+    term_kind: str
+    term_title: str
+    term_version: int
+    user_agent: str | None
+
+
+class TermVersionOut(ORM):
+    id: str
+    kind: str
+    version: int
+    title: str
+    body: str
+    content_sha256: str
+    is_active: bool
+    created_at: datetime
+    is_current: bool = False
+    acceptances: int = 0
 
 
 class PoaIn(BaseModel):

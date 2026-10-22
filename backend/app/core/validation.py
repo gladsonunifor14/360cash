@@ -14,17 +14,22 @@ FIELD_LABELS = {
     "expected_total": "Total confirmado", "monthly_fee": "Honorários mensais", "start_date": "Data de início",
     "valid_from": "Validade inicial", "valid_until": "Validade final", "saldo_inicial": "Saldo inicial",
     "saldo_final": "Saldo final", "aplicacoes": "Aplicações", "resgates": "Resgates", "competencia": "Mês",
-    "bank_name": "Banco", "start": "Data inicial", "end": "Data final", "q": "Busca",
+    "bank_name": "Banco", "role": "Perfil", "title": "Título", "body": "Texto",
+    "start": "Data inicial", "end": "Data final", "q": "Busca",
 }
 
 
 def _label(loc: tuple) -> str:
-    field = next((str(p) for p in reversed(loc) if isinstance(p, str) and p not in ("body", "query", "path")), "")
+    # loc = (origem, campo, ...): o campo é o último item textual após a origem (body/query/path)
+    names = [str(p) for p in loc[1:] if isinstance(p, str)] or [str(p) for p in loc if isinstance(p, str)]
+    field = names[-1] if names else ""
     return FIELD_LABELS.get(field, field.replace("_", " ").capitalize())
 
 
 def _message(err: dict) -> str:
     label, kind, ctx = _label(tuple(err.get("loc", ()))), err.get("type", ""), err.get("ctx") or {}
+    if "email address" in str(err.get("msg", "")):  # validador de e-mail do Pydantic responde em inglês
+        return f"O campo '{label}' deve ser um e-mail válido (ex.: nome@empresa.com.br)"
     if kind == "value_error":  # mensagens já escritas em português nos validadores
         return str(ctx.get("error", err.get("msg", ""))).removeprefix("Value error, ")
     messages = {

@@ -3,13 +3,14 @@
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import Principal, get_client_for, get_principal, require_admin, require_staff
 from app.core.security import hash_password, hash_token, utcnow
-from app.models import ApiKey, Client, Office, User
+from app.core.validation import FieldError
+from app.models import ApiKey, Client, Office, RefreshToken, User
 from app.routers.auth import forgot_password
 from app.schemas import (
     ApiKeyCreated,
@@ -25,6 +26,7 @@ from app.schemas import (
     OfficeUpdate,
     UserCreate,
     UserOut,
+    UserUpdate,
 )
 from app.services import cnpj as cnpj_service
 
@@ -151,12 +153,12 @@ def list_users(p: Principal = Depends(require_admin), db: Session = Depends(get_
 def create_user(body: UserCreate, p: Principal = Depends(require_admin), db: Session = Depends(get_db)):
     if body.role == "cliente":
         if not body.client_id:
-            raise HTTPException(422, "Usuário cliente precisa de client_id")
+            raise FieldError("client_id", "O campo 'Empresa' é obrigatório para usuários do tipo cliente")
         get_client_for(body.client_id, p, db)
     elif body.client_id:
-        raise HTTPException(422, "Somente usuários do tipo cliente são vinculados a uma empresa")
+        raise FieldError("client_id", "Somente usuários do tipo cliente são vinculados a uma empresa")
     if db.scalar(select(User.id).where(User.email == body.email.lower())):
-        raise HTTPException(409, "E-mail já cadastrado")
+        raise FieldError("email", f"O e-mail {body.email} já está cadastrado. Reative ou edite o usuário existente.")
     user = User(office_id=p.office_id, client_id=body.client_id, name=body.name, email=body.email.lower(),
                 role=body.role, password_hash=hash_password(secrets.token_urlsafe(32)))
     db.add(user)
@@ -165,16 +167,61 @@ def create_user(body: UserCreate, p: Principal = Depends(require_admin), db: Ses
     return user
 
 
-@router.post("/users/{user_id}/deactivate", response_model=Message, summary="Desativa usuário")
-def deactivate_user(user_id: str, p: Principal = Depends(require_admin), db: Session = Depends(get_db)):
+def _user(user_id: str, p: Principal, db: Session) -> User:
     user = db.get(User, user_id)
     if not user or user.office_id != p.office_id:
         raise HTTPException(404, "Usuário não encontrado")
+    return user
+
+
+@router.patch("/users/{user_id}", response_model=UserOut, summary="Altera nome, perfil ou empresa do usuário")
+def update_user(user_id: str, body: UserUpdate, p: Principal = Depends(require_admin), db: Session = Depends(get_db)):
+    user = _user(user_id, p, db)
+    data = body.model_dump(exclude_unset=True)
+    role = data.get("role", user.role)
+    client_id = data.get("client_id", user.client_id) if role == "cliente" else None
+    if user.id == p.user.id and role != "admin":
+        raise FieldError("role", "Você não pode remover o seu próprio perfil de administrador. "
+                                 "Peça a outro administrador para fazer essa alteração.")
+    if role == "cliente":
+        if not client_id:
+            raise FieldError("client_id", "O campo 'Empresa' é obrigatório para usuários do tipo cliente")
+        get_client_for(client_id, p, db)
+    if "name" in data:
+        user.name = data["name"]
+    user.role, user.client_id = role, client_id
+    db.commit()
+    return user
+
+
+@router.post("/users/{user_id}/deactivate", response_model=Message, summary="Desativa usuário")
+def deactivate_user(user_id: str, p: Principal = Depends(require_admin), db: Session = Depends(get_db)):
+    user = _user(user_id, p, db)
     if user.id == p.user.id:
         raise HTTPException(400, "Não é possível desativar o próprio usuário")
     user.is_active = False
+    db.execute(update(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+               .values(revoked_at=utcnow()))  # encerra as sessões abertas
     db.commit()
-    return Message(detail="Usuário desativado")
+    return Message(detail=f"{user.name} foi desativado e as sessões abertas foram encerradas")
+
+
+@router.post("/users/{user_id}/reactivate", response_model=Message, summary="Reativa usuário")
+def reactivate_user(user_id: str, p: Principal = Depends(require_admin), db: Session = Depends(get_db)):
+    user = _user(user_id, p, db)
+    user.is_active, user.failed_logins, user.locked_until = True, 0, None
+    db.commit()
+    return Message(detail=f"{user.name} foi reativado")
+
+
+@router.post("/users/{user_id}/resend-invite", response_model=Message,
+             summary="Reenvia o e-mail para definir a senha")
+def resend_invite(user_id: str, p: Principal = Depends(require_admin), db: Session = Depends(get_db)):
+    user = _user(user_id, p, db)
+    if not user.is_active:
+        raise HTTPException(409, "Reative o usuário antes de reenviar o convite")
+    forgot_password(ForgotIn(email=user.email), db)
+    return Message(detail=f"Enviamos para {user.email} um link para definir a senha (válido por 30 minutos)")
 
 
 # --------------------------------------------------------------------------- chaves de API

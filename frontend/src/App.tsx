@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, Client, logout, onSessionEnd, tryRestoreSession, User } from "./api";
 import GlobalSearch from "./components/GlobalSearch";
+import { StatusTag } from "./components/ui";
 import { ForgotPage, LoginPage, RegisterPage, ResetPage } from "./pages/Auth";
 import ControlTower from "./pages/ControlTower";
 import Dashboard from "./pages/Dashboard";
@@ -16,6 +17,8 @@ import CompliancePage from "./pages/Compliance";
 import DocumentsPage from "./pages/Documents";
 import SettingsPage from "./pages/Settings";
 import AuditPage from "./pages/Audit";
+import UsersPage from "./pages/Users";
+import TermsPage from "./pages/Terms";
 
 type Session = {
   user: User;
@@ -97,6 +100,22 @@ function CompanySwitcher() {
   );
 }
 
+/** Lembra o usuário de aceitar novas versões de termos (LGPD) em qualquer tela. */
+function PendingTermsBanner() {
+  const [count, setCount] = useState(0);
+  const location = useLocation();
+  useEffect(() => {
+    api<unknown[]>("/terms/pending").then((t) => setCount(t.length)).catch(() => setCount(0));
+  }, [location.pathname]);
+  if (!count || location.pathname === "/contratos") return null;
+  return (
+    <div className="banner" role="status">
+      <StatusTag kind="atencao" label="Termos pendentes" /> Há {count} termo(s) atualizado(s) aguardando o seu aceite.
+      <NavLink to="/contratos">Ler e aceitar</NavLink>
+    </div>
+  );
+}
+
 function Shell({ user, onExit }: { user: User; onExit: () => void }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientIdState] = useState(() => read(CLIENT_KEY, sessionStorage) ?? "");
@@ -130,7 +149,9 @@ function Shell({ user, onExit }: { user: User; onExit: () => void }) {
     ["/bi", "Indicadores (BI)", true],
     ["/relatorios", "DRE e Fluxo de caixa", true],
     ["/clientes", "Clientes", staff],
-    ["/contratos", "Contratos e LGPD", true],
+    ["/contratos", "Contratos e procurações", true],
+    ["/termos", "Termos e LGPD", staff],
+    ["/usuarios", "Usuários", user.role === "admin"],
     ["/documentos", "Documentos", true],
     ["/auditoria", "Auditoria", user.role === "admin"],
     ["/conta", "Minha conta", true],
@@ -153,6 +174,7 @@ function Shell({ user, onExit }: { user: User; onExit: () => void }) {
             <CompanySwitcher />
             <GlobalSearch />
           </header>
+          <PendingTermsBanner />
           <main className="main" id="conteudo" ref={mainRef}>
             <Routes>
               <Route path="/" element={<ControlTower />} />
@@ -168,6 +190,8 @@ function Shell({ user, onExit }: { user: User; onExit: () => void }) {
               <Route path="/contratos" element={<CompliancePage />} />
               <Route path="/documentos" element={<DocumentsPage />} />
               <Route path="/auditoria" element={<AuditPage />} />
+              <Route path="/usuarios" element={user.role === "admin" ? <UsersPage /> : <Navigate to="/" />} />
+              <Route path="/termos" element={staff ? <TermsPage /> : <Navigate to="/contratos" />} />
               <Route path="/conta" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
