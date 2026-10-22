@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { api, Header, pct } from "../api";
-import { ClientPicker, useSession } from "../App";
+import { useSession } from "../App";
 import { Alert, defaultPeriod, Money, PeriodPicker, ReportHeader, useLoad } from "../components/ui";
 
 type Values = Record<string, string>;
@@ -33,8 +33,7 @@ export default function ReportsPage() {
   return (
     <>
       <div className="topbar">
-        <h1 className="grow" style={{ margin: 0 }}>Relatórios</h1>
-        <ClientPicker />
+        <h1 tabIndex={-1} className="grow">Relatórios</h1>
         <select value={tab} onChange={(e) => setTab(e.target.value as "dre" | "fc")} aria-label="Relatório">
           <option value="dre">DRE gerencial</option>
           <option value="fc">Fluxo de caixa</option>

@@ -9,7 +9,7 @@ function AuthCard({ title, children }: { title: string; children: ReactNode }) {
       <div className="card auth-card">
         <div className="brand">360<span>cash</span></div>
         <p className="muted">BPO Financeiro para escritórios de contabilidade</p>
-        <h1>{title}</h1>
+        <h1 tabIndex={-1}>{title}</h1>
         {children}
       </div>
     </div>

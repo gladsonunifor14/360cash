@@ -402,6 +402,9 @@ class BankAccountOut(ORM):
     conta: str | None
     product_name: str | None
     source: str
+    connection_status: str = "manual"
+    last_sync_at: datetime | None = None
+    last_sync_error: str | None = None
 
 
 class TransactionOut(ORM):
@@ -481,3 +484,156 @@ class AuditOut(ORM):
     entity: str
     entity_id: str | None
     changes: dict | None
+
+
+# --------------------------------------------------------------------------- contas a pagar e receber
+
+DUE_BEFORE_ISSUE = "O campo 'Data de vencimento' não pode ser anterior à 'Data de emissão'"
+
+
+class TitleIn(BaseModel):
+    client_id: str
+    kind: Literal["pagar", "receber"]
+    counterparty_name: str = Field(min_length=2, max_length=200)
+    counterparty_doc: str | None = Field(default=None, max_length=18)
+    document_number: str | None = Field(default=None, max_length=60)
+    description: str | None = Field(default=None, max_length=300)
+    issue_date: date
+    due_date: date
+    amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    account_id: str | None = None
+
+    @field_validator("counterparty_doc")
+    @classmethod
+    def _doc(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        digits = only_digits(v)
+        if len(digits) not in (11, 14):
+            raise ValueError("O campo 'CPF/CNPJ' deve ter 11 (CPF) ou 14 (CNPJ) dígitos")
+        if len(digits) == 14 and not is_valid_cnpj(digits):
+            raise ValueError("O CNPJ informado no campo 'CPF/CNPJ' é inválido (dígitos verificadores não conferem)")
+        return digits
+
+    @field_validator("due_date")
+    @classmethod
+    def _dates(cls, v: date, info) -> date:
+        issue = info.data.get("issue_date")
+        if issue and v < issue:
+            raise ValueError(DUE_BEFORE_ISSUE)
+        return v
+
+
+class TitleUpdate(BaseModel):
+    counterparty_name: str | None = Field(default=None, min_length=2, max_length=200)
+    document_number: str | None = Field(default=None, max_length=60)
+    description: str | None = Field(default=None, max_length=300)
+    issue_date: date | None = None
+    due_date: date | None = None
+    amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
+    account_id: str | None = None
+
+
+class TitleOut(ORM):
+    id: str
+    client_id: str
+    kind: str
+    counterparty_name: str
+    counterparty_doc: str | None
+    document_number: str | None
+    description: str | None
+    issue_date: date
+    due_date: date
+    amount: Decimal
+    paid_amount: Decimal
+    open_amount: Decimal
+    status: str
+    urgency: str = "proximo"
+    scheduled_for: date | None
+    settled_at: date | None
+    account_id: str | None
+    invoice_id: str | None
+    document_id: str | None
+
+
+class FeedItem(BaseModel):
+    at: datetime
+    user: str
+    action: str
+    text: str
+
+
+class TitleDetail(TitleOut):
+    history: list[FeedItem]
+
+
+BatchAction = Literal["aprovar", "agendar", "liquidar", "cancelar"]
+
+
+class BatchPreviewIn(BaseModel):
+    title_ids: list[str] = Field(min_length=1, max_length=500)
+    action: BatchAction
+
+
+class BatchIneligible(BaseModel):
+    id: str
+    motivo: str
+
+
+class BatchPreviewOut(BaseModel):
+    action: str
+    count: int
+    total: Decimal
+    total_pagar: Decimal
+    total_receber: Decimal
+    eligible_ids: list[str]
+    ineligible: list[BatchIneligible]
+
+
+class BatchIn(BatchPreviewIn):
+    expected_total: Decimal = Field(description="Total exibido ao usuário na pré-visualização (confirmação)")
+    on_date: date | None = Field(default=None, description="Data do agendamento ou da liquidação (padrão: hoje)")
+
+
+class ReconcileIn(BaseModel):
+    transaction_id: str
+    title_id: str
+    action: Literal["exato", "juros", "desconto", "parcial"]
+
+
+class SuggestionOut(BaseModel):
+    transaction: "TransactionOut"
+    title: TitleOut
+    score: float
+    difference: Decimal
+    actions: list[str]
+
+
+class ReconciliationOut(ORM):
+    id: str
+    transaction_id: str
+    title_id: str | None
+    kind: str
+    amount: Decimal
+    account_id: str | None
+
+
+class BankConnectionOut(ORM):
+    id: str
+    client_id: str
+    bank_name: str
+    conta: str | None
+    source: str
+    connection_status: str = "manual"
+    last_sync_at: datetime | None = None
+    last_sync_error: str | None = None
+
+
+class SearchHit(BaseModel):
+    type: Literal["cliente", "nota", "titulo", "lancamento"]
+    id: str
+    client_id: str
+    client_name: str
+    label: str
+    detail: str
+    route: str

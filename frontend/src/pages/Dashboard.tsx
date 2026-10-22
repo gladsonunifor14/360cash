@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api, Header, money, pct } from "../api";
-import { ClientPicker, useSession } from "../App";
+import { useSession } from "../App";
 import { Alert, Bars, defaultPeriod, Money, PeriodPicker, ReportHeader, useLoad } from "../components/ui";
 
 type Management = {
@@ -39,8 +39,7 @@ export default function Dashboard() {
   return (
     <>
       <div className="topbar">
-        <h1 className="grow" style={{ margin: 0 }}>Painel BI</h1>
-        <ClientPicker />
+        <h1 tabIndex={-1} className="grow">Indicadores (BI)</h1>
         <PeriodPicker value={period} onChange={setPeriod} />
         <button className="secondary" onClick={() => window.print()}>Imprimir / PDF</button>
       </div>

@@ -29,7 +29,7 @@ export default function ClientsPage() {
 
   return (
     <>
-      <h1>Clientes</h1>
+      <h1 tabIndex={-1}>Clientes</h1>
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Novo cliente</h2>
         {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}

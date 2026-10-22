@@ -13,8 +13,6 @@ from sqlalchemy.orm import Session
 
 from app.core.security import utcnow
 from app.models import (
-    BankAccount,
-    BankTransaction,
     ChartAccount,
     Client,
     InvestmentStatement,
@@ -24,6 +22,7 @@ from app.models import (
 )
 from app.services.accounting import DRE_ORDER, INVOICE_DRIVEN_CODES
 from app.services.cnpj import format_cnpj
+from app.services.reconciliation import split_rows
 
 REGIME_LABEL = {"competencia": "competência", "caixa": "caixa"}
 REVENUE_GROUPS = {"receita_bruta", "receitas_financeiras", "outras_receitas"}
@@ -64,16 +63,8 @@ def _accounts(db: Session, office_id: str) -> dict[str, ChartAccount]:
 
 
 def _bank_rows(db: Session, client_id: str, start: date, end: date):
-    return db.execute(
-        select(BankTransaction.date, BankTransaction.amount, BankTransaction.account_id)
-        .join(BankAccount, BankAccount.id == BankTransaction.bank_account_id)
-        .where(
-            BankTransaction.client_id == client_id,
-            BankAccount.kind == "corrente",
-            BankTransaction.date >= start,
-            BankTransaction.date <= end,
-        )
-    ).all()
+    """(data, valor, conta) do caixa; lançamentos conciliados entram pelo rateio (principal, juros, desconto)."""
+    return split_rows(db, client_id, start, end)
 
 
 # --------------------------------------------------------------------------- fluxo de caixa

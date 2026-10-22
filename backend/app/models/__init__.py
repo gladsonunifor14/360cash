@@ -384,6 +384,10 @@ class BankAccount(TimestampMixin, Base):
     # origem dos dados: manual | ofx | open_finance
     source: Mapped[str] = mapped_column(String(20), default="manual", nullable=False)
     external_id: Mapped[str | None] = mapped_column(String(100))  # id no agregador Open Finance
+    # status da integração: manual | ativo | reautenticar | erro
+    connection_status: Mapped[str] = mapped_column(String(15), default="manual", nullable=False)
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_sync_error: Mapped[str | None] = mapped_column(String(300))
 
 
 class BankTransaction(TimestampMixin, Base):
@@ -435,6 +439,67 @@ class InvestmentStatement(TimestampMixin, Base):
     taxa_adm_pct: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=0)
     aliquota_ir_efetiva_pct: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=0)
     pct_benchmark: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+
+
+# --------------------------------------------------------------------------- contas a pagar e receber
+
+
+class Title(TimestampMixin, Base):
+    """Título financeiro (conta a pagar ou a receber)."""
+
+    __tablename__ = "titles"
+    __audited__ = True
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    office_id: Mapped[str] = mapped_column(ForeignKey("offices.id"), nullable=False, index=True)
+    client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), nullable=False, index=True)
+    # pagar | receber
+    kind: Mapped[str] = mapped_column(String(10), nullable=False)
+    counterparty_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    counterparty_doc: Mapped[str | None] = mapped_column(String(14), index=True)
+    document_number: Mapped[str | None] = mapped_column(String(60), index=True)
+    description: Mapped[str | None] = mapped_column(String(300))
+    issue_date: Mapped[date] = mapped_column(Date, nullable=False)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    paid_amount: Mapped[Decimal] = mapped_column(Money, default=0, nullable=False)
+    # aberto | aprovado | agendado | parcial | liquidado | cancelado
+    status: Mapped[str] = mapped_column(String(15), default="aberto", nullable=False, index=True)
+    scheduled_for: Mapped[date | None] = mapped_column(Date)
+    settled_at: Mapped[date | None] = mapped_column(Date)
+    approved_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    account_id: Mapped[str | None] = mapped_column(ForeignKey("chart_accounts.id"))
+    invoice_id: Mapped[str | None] = mapped_column(ForeignKey("invoices.id"), index=True)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("documents.id"))
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+
+    @property
+    def open_amount(self) -> Decimal:
+        return Decimal(self.amount) - Decimal(self.paid_amount or 0)
+
+
+class Reconciliation(Base):
+    """Rateio de um lançamento bancário: principal do título e diferenças (juros, desconto).
+
+    A soma das linhas de um lançamento é igual ao valor do lançamento; os relatórios usam
+    estas linhas no lugar da classificação simples quando o lançamento está conciliado.
+    """
+
+    __tablename__ = "reconciliations"
+    __audited__ = True
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    office_id: Mapped[str] = mapped_column(ForeignKey("offices.id"), nullable=False, index=True)
+    client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), nullable=False, index=True)
+    transaction_id: Mapped[str] = mapped_column(ForeignKey("bank_transactions.id"), nullable=False, index=True)
+    title_id: Mapped[str | None] = mapped_column(ForeignKey("titles.id"), index=True)
+    # principal | juros | desconto
+    kind: Mapped[str] = mapped_column(String(15), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Money, nullable=False)  # com sinal do caixa
+    account_id: Mapped[str | None] = mapped_column(ForeignKey("chart_accounts.id"))
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
 
 
 # --------------------------------------------------------------------------- auditoria

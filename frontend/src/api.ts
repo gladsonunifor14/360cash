@@ -8,8 +8,11 @@ let accessToken: string | null = null;
 let onLogout: () => void = () => {};
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  /** mensagens por campo (último elemento do loc), vindas da validação da API */
+  fields: Record<string, string>;
+  constructor(public status: number, message: string, fields: Record<string, string> = {}) {
     super(message);
+    this.fields = fields;
   }
 }
 
@@ -77,7 +80,14 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}, ret
   }
   const isJson = r.headers.get("content-type")?.includes("application/json");
   const body = isJson ? await r.json() : await r.blob();
-  if (!r.ok) throw new ApiError(r.status, errorMessage(body, r.status));
+  if (!r.ok) {
+    const fields: Record<string, string> = {};
+    for (const e of (body as { erros?: { loc: unknown[]; mensagem: string }[] })?.erros ?? []) {
+      const key = String(e.loc[e.loc.length - 1] ?? "");
+      fields[key] = fields[key] ? `${fields[key]}; ${e.mensagem}` : e.mensagem;
+    }
+    throw new ApiError(r.status, errorMessage(body, r.status), fields);
+  }
   return body as T;
 }
 
@@ -98,6 +108,9 @@ export const pct = (v: number | string | null | undefined) =>
   v === null || v === undefined ? "—" : `${Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 export const dateBR = (v: string | null | undefined) =>
   v ? new Date(v.length === 10 ? `${v}T00:00:00` : v).toLocaleDateString("pt-BR") : "—";
+/** "1.234,56" ou "1234.56" → "1234.56" (apenas normalização de digitação; a validação é da API) */
+export const toDecimal = (v: string) => (v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v).trim();
+
 export const cnpjMask = (v: string) =>
   v.replace(/\D/g, "").replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, "$1.$2.$3/$4-$5");
 
@@ -108,6 +121,16 @@ export type Client = {
   id: string; cnpj: string; razao_social: string; nome_fantasia: string | null; regime_tributario: string | null;
   situacao_cadastral: string | null; cnae_principal: string | null; endereco: Record<string, string> | null;
   email: string | null; telefone: string | null;
+};
+export type Title = {
+  id: string; client_id: string; kind: "pagar" | "receber"; counterparty_name: string; counterparty_doc: string | null;
+  document_number: string | null; description: string | null; issue_date: string; due_date: string; amount: string;
+  paid_amount: string; open_amount: string; status: string; urgency: string; scheduled_for: string | null;
+  settled_at: string | null; account_id: string | null; invoice_id: string | null; document_id: string | null;
+};
+export type Transaction = {
+  id: string; bank_account_id: string; date: string; description: string; amount: string; account_id: string | null;
+  classified_by: string | null; confidence: number | null; suggested_account_id: string | null;
 };
 export type ChartAccount = { id: string; code: string; name: string; nature: string; dre_group: string | null };
 export type Header = {

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { api, dateBR, money, pct, post } from "../api";
-import { ClientPicker, useSession } from "../App";
+import { useSession } from "../App";
 import { Alert, Money, useLoad } from "../components/ui";
 import { NewAccount } from "./Banking";
 
@@ -49,7 +49,7 @@ export default function InvestmentsPage() {
 
   return (
     <>
-      <div className="topbar"><h1 className="grow" style={{ margin: 0 }}>Aplicações financeiras</h1><ClientPicker /></div>
+      <div className="topbar"><h1 tabIndex={-1} className="grow">Aplicações financeiras</h1></div>
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Extrato mensal</h2>

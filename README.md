@@ -33,12 +33,16 @@ e gera Fluxo de Caixa, DRE e relatórios gerenciais, sempre com a identificaçã
 | 3. Extratos de conta corrente (cliente classifica, IA replica) | `services/bank_parser.py`, `services/classifier.py`, `routers/banking.py` |
 | 3. Extratos de aplicações (rendimento, taxas, taxa adm., IRRF) | `services/investments.py`, `/investments` |
 | 3. Open Finance | `services/open_finance.py` e [docs/open-finance.md](docs/open-finance.md) |
+| Contas a pagar e receber (geradas das NF-e, lote com confirmação do total, histórico) | `services/titles.py`, `routers/payables.py`, `frontend/src/pages/Payables.tsx` |
+| Conciliação bancária (match sugerido, juros/multa, desconto, parcial) | `services/reconciliation.py`, `frontend/src/pages/Reconciliation.tsx` |
+| Torre de controle multiempresa e busca global | `routers/workspace.py`, `frontend/src/pages/ControlTower.tsx`, `components/GlobalSearch.tsx` |
 | 4. Fluxo de Caixa, DRE e Relatórios Gerenciais | `services/reports.py`, `frontend/src/pages/{Dashboard,Reports}.tsx` |
 | 5. Backend com regras + frontend "dummy" | todo cálculo na API; o frontend só exibe |
 | 5. Swagger desde o início | `/docs`, `/redoc`, `/openapi.json` |
 | 5. Auditoria (quem, quando, o que mudou) | `backend/app/core/audit.py`, tabela `audit_log` (append-only no PostgreSQL) |
 
-Detalhes de segurança e operação: [docs/seguranca.md](docs/seguranca.md). Configuração do domínio e e-mail:
+Diretrizes de UX aplicadas (torre de controle, tela dividida, lote, conciliação, acessibilidade):
+[docs/ux.md](docs/ux.md). Detalhes de segurança e operação: [docs/seguranca.md](docs/seguranca.md). Configuração do domínio e e-mail:
 [docs/dns-email.md](docs/dns-email.md). Próximos passos: [docs/roadmap.md](docs/roadmap.md).
 
 ## Rodando localmente

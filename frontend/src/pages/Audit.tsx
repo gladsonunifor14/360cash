@@ -14,11 +14,11 @@ export default function AuditPage() {
   return (
     <>
       <div className="topbar">
-        <h1 className="grow" style={{ margin: 0 }}>Trilha de auditoria</h1>
+        <h1 tabIndex={-1} className="grow">Trilha de auditoria</h1>
         <select value={entity} onChange={(e) => setEntity(e.target.value)} aria-label="Entidade">
           <option value="">Todas as entidades</option>
           {["users", "clients", "contracts", "terms", "term_acceptances", "documents", "invoices", "invoice_items",
-            "bank_transactions", "investment_statements", "powers_of_attorney", "chart_accounts", "api_keys", "offices"].map((e) => <option key={e}>{e}</option>)}
+            "titles", "reconciliations", "bank_transactions", "investment_statements", "powers_of_attorney", "chart_accounts", "api_keys", "offices"].map((e) => <option key={e}>{e}</option>)}
         </select>
       </div>
       <Alert>{log.error}</Alert>

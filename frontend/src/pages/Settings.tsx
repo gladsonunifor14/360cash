@@ -23,7 +23,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <h1>Minha conta</h1>
+      <h1 tabIndex={-1}>Minha conta</h1>
       <div className="card">
         <p><strong>{user.name}</strong> · {user.email} · <span className="badge">{user.role}</span></p>
         <h2>Alterar senha</h2>

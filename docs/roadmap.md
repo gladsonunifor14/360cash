@@ -11,11 +11,14 @@
 - Aplicações financeiras: rendimento, taxas, taxa de administração, IRRF, % do CDI e simulador regressivo.
 - Fluxo de Caixa, DRE (competência e caixa) e relatório gerencial com KPIs e rankings.
 - Swagger, auditoria automática e imutável, CI, Docker e dados de demonstração.
+- Torre de controle multiempresa, busca global, contas a pagar/receber com tela dividida e lote, conciliação
+  bancária com tratamento de divergências e mensagens de erro acionáveis (ver `docs/ux.md`).
 
 ## Próximas entregas sugeridas
 
 **Produto (contábil/financeiro)**
-- Contas a pagar/receber e conciliação de títulos com extrato (PMR, PMP, ciclo de caixa).
+- Indicadores de prazo médio (PMR, PMP, ciclo de caixa) a partir dos títulos e da conciliação.
+- Remessa/retorno CNAB e pagamento via API bancária (Pix/boletos) a partir dos títulos agendados.
 - Orçado × realizado e projeção de fluxo de caixa (13 semanas).
 - NFS-e (padrão nacional) e CT-e; importação automática da SEFAZ por certificado digital (Distribuição DF-e).
 - Apuração estimada de tributos (Simples, Presumido) e alertas de enquadramento.

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.deps import Principal, get_client_for, get_principal, require_admin, require_staff
-from app.models import CfopRule, ChartAccount, Client, Invoice, InvoiceItem
+from app.models import CfopRule, ChartAccount, Client, Invoice, InvoiceItem, Title
 from app.routers.common import expand_zip, read_limited
 from app.routers.compliance import store_document
 from app.schemas import (
@@ -23,6 +23,7 @@ from app.schemas import (
 )
 from app.services import nfe_parser
 from app.services.accounting import account_by_code, resolve_cfop
+from app.services.titles import titles_from_invoice
 
 router = APIRouter(tags=["Notas fiscais"])
 
@@ -55,6 +56,9 @@ def _import_one(db: Session, p: Principal, client: Client, filename: str, data: 
         if not inv:
             return ImportResult(arquivo=filename, status="erro", detalhe="NF-e do cancelamento não importada")
         inv.cancelled = True
+        for t in db.scalars(select(Title).where(Title.invoice_id == inv.id, Title.status.in_(("aberto", "aprovado",
+                                                                                            "agendado")))):
+            t.status = "cancelado"
         return ImportResult(arquivo=filename, status="cancelamento", id=inv.id)
 
     if parsed.emit_cnpj == client.cnpj:
@@ -86,7 +90,10 @@ def _import_one(db: Session, p: Principal, client: Client, filename: str, data: 
         inv.items.append(item)
     db.add(inv)
     db.flush()
-    return ImportResult(arquivo=filename, status="importado", id=inv.id)
+    titles = titles_from_invoice(inv, parsed)
+    db.add_all(titles)
+    detail = f"{len(titles)} título(s) a {titles[0].kind} gerado(s)" if titles else None
+    return ImportResult(arquivo=filename, status="importado", id=inv.id, detalhe=detail)
 
 
 @router.post("/clients/{client_id}/invoices/import", response_model=list[ImportResult],

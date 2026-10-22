@@ -29,6 +29,13 @@ class NfeItem:
 
 
 @dataclass
+class NfeDuplicata:
+    numero: str | None
+    vencimento: date
+    valor: Decimal
+
+
+@dataclass
 class NfeData:
     chave: str
     modelo: str | None
@@ -43,6 +50,7 @@ class NfeData:
     dest_nome: str | None
     totais: dict[str, Decimal]
     items: list[NfeItem] = field(default_factory=list)
+    duplicatas: list[NfeDuplicata] = field(default_factory=list)
 
 
 @dataclass
@@ -135,7 +143,15 @@ def parse(xml_bytes: bytes) -> NfeData | NfeCancelEvent:
         }.items()
     }
 
+    duplicatas = []
+    for dup in inf.findall("n:cobr/n:dup", NS):
+        venc = _text(dup, "n:dVenc")
+        if venc:
+            duplicatas.append(NfeDuplicata(numero=_text(dup, "n:nDup"), vencimento=_parse_date(venc),
+                                           valor=_dec(_text(dup, "n:vDup"))))
+
     return NfeData(
+        duplicatas=duplicatas,
         chave=chave,
         modelo=_text(ide, "n:mod"),
         numero=_text(ide, "n:nNF"),

@@ -1,6 +1,6 @@
 import { Fragment, FormEvent, useState } from "react";
 import { api, dateBR, money, post } from "../api";
-import { ClientPicker, useSession } from "../App";
+import { useSession } from "../App";
 import { Alert, useLoad } from "../components/ui";
 
 type Contract = { id: string; client_id: string; content: string; content_sha256: string; monthly_fee: string; start_date: string; status: string; accepted_at: string | null; accepted_ip: string | null };
@@ -46,7 +46,7 @@ export default function CompliancePage() {
 
   return (
     <>
-      <div className="topbar"><h1 className="grow" style={{ margin: 0 }}>Contratos, LGPD e procurações</h1><ClientPicker /></div>
+      <div className="topbar"><h1 tabIndex={-1} className="grow">Contratos, LGPD e procurações</h1></div>
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
 
       {!!pending.data?.length && (

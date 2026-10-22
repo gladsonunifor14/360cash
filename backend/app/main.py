@@ -9,16 +9,20 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 
 from app.core.audit import AuditContext, audit_ctx
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.ratelimit import client_ip
-from app.routers import auth, banking, compliance, fiscal, registry, reporting
-from app.services.accounting import seed_cfop_rules
+from app.core.validation import FieldError, field_error_handler, validation_handler
+from app.models import Office
+from app.routers import auth, banking, compliance, fiscal, payables, registry, reporting, workspace
+from app.services.accounting import seed_cfop_rules, seed_chart
 
 log = logging.getLogger("cash360")
 settings = get_settings()
@@ -31,6 +35,9 @@ TAGS = [
     {"name": "LGPD e Termos", "description": "Política de privacidade, confidencialidade, termos de uso e aceites."},
     {"name": "Procurações", "description": "Procurações outorgadas pelo cliente ao escritório."},
     {"name": "Documentos", "description": "Repositório de documentos com hash SHA-256."},
+    {"name": "Torre de controle", "description": "Pendências por criticidade em todas as empresas e busca global."},
+    {"name": "Contas a pagar e receber", "description": "Títulos, anexos, aprovação/agendamento/liquidação em lote."},
+    {"name": "Conciliação bancária", "description": "Extrato × título com juros, desconto e parcial."},
     {"name": "Notas fiscais", "description": "Importação de XML de NF-e emitidas/recebidas e classificação por CFOP."},
     {"name": "Plano de contas", "description": "Plano de contas gerencial e tabela CFOP."},
     {"name": "Extratos bancários", "description": "OFX/CSV, classificação pelo cliente e replicação por IA."},
@@ -45,6 +52,8 @@ TAGS = [
 async def lifespan(_: FastAPI):
     with SessionLocal() as db:
         seed_cfop_rules(db)
+        for office_id in db.scalars(select(Office.id)):
+            seed_chart(db, office_id)  # contas novas do plano padrão chegam aos escritórios existentes
         db.commit()
     yield
 
@@ -94,10 +103,15 @@ async def security_and_audit_context(request: Request, call_next):
     return response
 
 
+app.add_exception_handler(RequestValidationError, validation_handler)
+app.add_exception_handler(FieldError, field_error_handler)
+
+
 @app.get("/health", tags=["Infra"], summary="Healthcheck")
 def health():
     return {"status": "ok"}
 
 
-for r in (auth.router, registry.router, compliance.router, fiscal.router, banking.router, reporting.router):
+for r in (auth.router, workspace.router, registry.router, compliance.router, fiscal.router, payables.router,
+          banking.router, reporting.router):
     app.include_router(r, prefix="/v1")

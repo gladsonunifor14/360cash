@@ -1,9 +1,10 @@
 import { FormEvent, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, ChartAccount, dateBR, pct, post } from "../api";
-import { ClientPicker, useSession } from "../App";
-import { Alert, Money, useLoad } from "../components/ui";
+import { useSession } from "../App";
+import { Alert, Money, onListKeys, StatusTag, useLoad } from "../components/ui";
 
-type BankAccount = { id: string; kind: string; bank_name: string; agencia: string | null; conta: string | null; source: string };
+type BankAccount = { id: string; kind: string; bank_name: string; agencia: string | null; conta: string | null; source: string; connection_status: string; last_sync_at: string | null; last_sync_error: string | null };
 type Tx = {
   id: string; date: string; description: string; amount: string; account_id: string | null;
   classified_by: string | null; confidence: number | null; suggested_account_id: string | null;
@@ -11,7 +12,8 @@ type Tx = {
 
 export default function BankingPage() {
   const { clientId } = useSession();
-  const [status, setStatus] = useState("pendente");
+  const [params] = useSearchParams();
+  const [status, setStatus] = useState(params.get("status") ?? "pendente");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [target, setTarget] = useState("");
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -64,18 +66,18 @@ export default function BankingPage() {
   return (
     <>
       <div className="topbar">
-        <h1 className="grow" style={{ margin: 0 }}>Extratos bancários</h1>
-        <ClientPicker />
+        <h1 tabIndex={-1} className="grow">Extratos bancários</h1>
       </div>
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Contas correntes</h2>
         <table>
-          <thead><tr><th>Banco</th><th>Agência/Conta</th><th>Origem</th><th>Importar OFX/CSV</th></tr></thead>
+          <thead><tr><th>Banco</th><th>Agência/Conta</th><th>Integração</th><th>Última atualização</th><th>Importar OFX/CSV</th></tr></thead>
           <tbody>
             {accounts.data?.filter((a) => a.kind === "corrente").map((a) => (
               <tr key={a.id}>
-                <td>{a.bank_name}</td><td>{a.agencia ?? "—"} / {a.conta ?? "—"}</td><td><span className="badge">{a.source}</span></td>
+                <td>{a.bank_name}</td><td>{a.agencia ?? "—"} / {a.conta ?? "—"}</td><td><StatusTag kind={a.connection_status} />{a.last_sync_error && <div className="field-error">{a.last_sync_error}</div>}</td>
+                <td>{a.last_sync_at ? new Date(a.last_sync_at + "Z").toLocaleString("pt-BR") : "—"}</td>
                 <td><input type="file" accept=".ofx,.csv,.txt" onChange={(e) => upload(a.id, e.target.files?.[0])} /></td>
               </tr>
             ))}
@@ -100,13 +102,13 @@ export default function BankingPage() {
           <button disabled={!selected.size || !target} onClick={classify}>Classificar ({selected.size})</button>
           <button className="secondary" disabled={!selected.size} onClick={accept}>Aceitar sugestões</button>
         </div>
-        <table>
+        <table onKeyDown={onListKeys}>
           <thead><tr><th /><th>Data</th><th>Histórico</th><th className="num">Valor</th><th>Conta</th><th>Sugestão IA</th><th>Origem</th></tr></thead>
           <tbody>
             {txs.data?.length === 0 && <tr><td colSpan={7} className="muted">Nenhum lançamento neste filtro.</td></tr>}
             {txs.data?.map((t) => (
               <tr key={t.id}>
-                <td><input type="checkbox" checked={selected.has(t.id)} onChange={() => toggle(t.id)} aria-label="Selecionar" /></td>
+                <td><input data-row type="checkbox" checked={selected.has(t.id)} onChange={() => toggle(t.id)} aria-label={`Selecionar ${t.description}`} /></td>
                 <td>{dateBR(t.date)}</td>
                 <td>{t.description}</td>
                 <td className="num"><Money v={t.amount} /></td>

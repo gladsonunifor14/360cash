@@ -2,12 +2,14 @@
 
 from datetime import date
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import Principal, get_client_for, get_principal, require_staff
+from app.core.security import utcnow
 from app.models import BankAccount, BankTransaction, ChartAccount, InvestmentStatement
 from app.routers.common import read_limited
 from app.routers.compliance import store_document
@@ -93,6 +95,7 @@ async def import_statement(bank_account_id: str, file: UploadFile = File(...), p
     store_document(db, p, acc.client_id, "extrato", file.filename or "extrato", file.content_type or "", data)
     if acc.source == "manual":
         acc.source = "ofx"
+    acc.last_sync_at = utcnow()
     new, dup = _save_transactions(db, acc, parsed.transactions)
     stats = classifier.classify_pending(db, acc.client_id, acc.office_id)
     db.commit()
@@ -191,7 +194,18 @@ def open_finance_sync(bank_account_id: str, start: date, end: date, p: Principal
         txs = open_finance.get_provider().list_transactions(acc.external_id, start, end)
     except open_finance.OpenFinanceError as exc:
         raise HTTPException(503, str(exc)) from exc
-    acc.source = "open_finance"
+    except httpx.HTTPStatusError as exc:
+        expired = exc.response.status_code in (401, 403)
+        acc.connection_status = "reautenticar" if expired else "erro"
+        acc.last_sync_error = ("Consentimento expirado ou revogado: o cliente precisa autorizar novamente no banco"
+                               if expired else f"Banco/agregador respondeu {exc.response.status_code}")
+        db.commit()
+        raise HTTPException(502, acc.last_sync_error) from exc
+    except httpx.HTTPError as exc:
+        acc.connection_status, acc.last_sync_error = "erro", "Sem resposta do agregador Open Finance"
+        db.commit()
+        raise HTTPException(502, acc.last_sync_error) from exc
+    acc.source, acc.connection_status, acc.last_sync_at, acc.last_sync_error = "open_finance", "ativo", utcnow(), None
     new, dup = _save_transactions(db, acc, txs)
     stats = classifier.classify_pending(db, acc.client_id, acc.office_id)
     db.commit()

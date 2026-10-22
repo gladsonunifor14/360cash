@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, ChartAccount, cnpjMask, dateBR, post } from "../api";
-import { ClientPicker, useSession } from "../App";
+import { useSession } from "../App";
 import { Alert, Money, useLoad } from "../components/ui";
 
 type Invoice = {
@@ -14,7 +15,8 @@ export default function InvoicesPage() {
   const { clientId, user } = useSession();
   const [direction, setDirection] = useState("");
   const [results, setResults] = useState<ImportResult[]>([]);
-  const [open, setOpen] = useState<string | null>(null);
+  const [params] = useSearchParams();
+  const [open, setOpen] = useState<string | null>(params.get("nota"));
   const [error, setError] = useState<string | null>(null);
   const list = useLoad<Invoice[]>(
     () => (clientId ? api(`/clients/${clientId}/invoices${direction ? `?direction=${direction}` : ""}`) : Promise.resolve([])),
@@ -37,8 +39,7 @@ export default function InvoicesPage() {
   return (
     <>
       <div className="topbar">
-        <h1 className="grow" style={{ margin: 0 }}>Notas fiscais</h1>
-        <ClientPicker />
+        <h1 tabIndex={-1} className="grow">Notas fiscais</h1>
         <select value={direction} onChange={(e) => setDirection(e.target.value)} aria-label="Tipo">
           <option value="">Emitidas e recebidas</option>
           <option value="emitida">Emitidas</option>

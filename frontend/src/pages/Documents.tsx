@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { api, dateBR, post } from "../api";
-import { ClientPicker, useSession } from "../App";
+import { useSession } from "../App";
 import { Alert, useLoad } from "../components/ui";
 
 type Doc = { id: string; category: string; filename: string; size_bytes: number; sha256: string; created_at: string };
@@ -40,7 +40,7 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <div className="topbar"><h1 className="grow" style={{ margin: 0 }}>Repositório de documentos</h1><ClientPicker /></div>
+      <div className="topbar"><h1 tabIndex={-1} className="grow">Repositório de documentos</h1></div>
       <div className="card">
         <Alert>{error}</Alert>
         <form className="row" onSubmit={upload}>
