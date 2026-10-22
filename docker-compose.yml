@@ -1,0 +1,33 @@
+# Ambiente local completo: docker compose up --build  →  http://localhost:8080
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cash360
+      POSTGRES_USER: cash360
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cash360}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cash360"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    env_file: [./backend/.env]
+    environment:
+      CASH360_DATABASE_URL: postgresql+psycopg://cash360:${POSTGRES_PASSWORD:-cash360}@db:5432/cash360
+      CASH360_FRONTEND_URL: http://localhost:8080
+      CASH360_CORS_ORIGINS: '["http://localhost:8080"]'
+    volumes: [storage:/data/storage]
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build: ./frontend
+    ports: ["8080:8080"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  storage:
